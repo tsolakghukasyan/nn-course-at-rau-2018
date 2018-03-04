@@ -1,8 +1,9 @@
 
 # coding: utf-8
 
-# In[46]:
+# # HW1
 
+# In[121]:
 
 import keras
 from keras.datasets import mnist
@@ -12,32 +13,32 @@ from keras.optimizers import RMSprop
 from skimage import io
 import os
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+get_ipython().magic('pylab inline')
 
 
 # ### hyperparameters
 
-# In[91]:
+# In[102]:
 
-
-batch_size = 5
+batch_size = 4
 num_classes = 2
-epochs = 5
+epochs = 10
 
 
-# ### train, test data
+# ### preparing train, test data
 
-# In[92]:
+# In[128]:
 
-
-def read_images(path, label=1):
+def read_images(path, label=1, display=True):
     data = []
     for img in os.listdir(path):
-        data.append(io.imread(path + '/' + img, as_grey=True).reshape(1024))
+        data.append(io.imread(path + '/' + img, as_grey=True).reshape(1024) / 255)
     return data, [label] * len(data)
 
 
-# In[93]:
-
+# In[129]:
 
 def compile_set(path, label):    
     x_train, y_train = read_images(path + '/train', label)
@@ -48,10 +49,8 @@ def compile_set(path, label):
             'test': (x_test, y_test)}
 
 
-# In[94]:
+# In[130]:
 
-
-# the data, split between train and test sets
 phone_set = compile_set('phone_dataset', label=0)
 hammer_set = compile_set('hammer_dataset', label=1)
 
@@ -69,14 +68,28 @@ print(x_dev.shape[0], 'development samples')
 print(x_test.shape[0], 'test samples')
 
 
+# ### displaying data
+
+# In[131]:
+
+print("Sample Nokia pic")
+img = mpimg.imread('phone_dataset/train/nokia1.png')
+imgplot = plt.imshow(-img, cmap=pyplot.cm.binary)
+plt.show()
+
+print("Sample hammer pic")
+img = mpimg.imread('hammer_dataset/train/hammer1.png')
+imgplot = plt.imshow(-img, cmap=pyplot.cm.binary)
+plt.show()
+
+
 # ### neural network classifier
 
-# In[96]:
-
+# In[132]:
 
 model = Sequential()
-model.add(Dense(64, activation='relu', input_shape=(1024,)))
-model.add(Dropout(0.5))
+model.add(Dense(128, activation='relu', input_shape=(1024,)))
+# model.add(Dropout(0.2))
 model.add(Dense(1, activation='sigmoid'))
 
 model.summary()
@@ -86,10 +99,9 @@ model.compile(loss='binary_crossentropy',
               metrics=['accuracy'])
 
 
-# ### training
+# ### training the net
 
-# In[97]:
-
+# In[138]:
 
 history = model.fit(x_train, y_train,
                     batch_size=batch_size,
@@ -98,18 +110,18 @@ history = model.fit(x_train, y_train,
                     validation_data=(x_dev, y_dev))
 
 
-# In[98]:
+# ### accuracy on development set
 
+# In[139]:
 
 score = model.evaluate(x_dev, y_dev, verbose=0)
 print('Dev loss:', score[0])
 print('Dev accuracy:', score[1])
 
 
-# ### accuracy
+# ### accuracy on test set
 
-# In[99]:
-
+# In[140]:
 
 score = model.evaluate(x_test, y_test, verbose=0)
 print('Test loss:', score[0])
