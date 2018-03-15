@@ -6,6 +6,7 @@ import numpy as np
 from sklearn.utils import shuffle
 import matplotlib.pyplot as plt
 from tensorflow.examples.tutorials.mnist import input_data
+get_ipython().magic('matplotlib inline')
 
 
 # #### Implementing Simple Artificial Neural Network for multiclass classification
@@ -15,23 +16,34 @@ class SingleLayerNetwork:
     
     def __init__(self):
         self.weights = None
+        self.bias = None
         self.learning_rate = None
     
-    def fit(self, X, y, epoch=10, learning_rate=0.001):
+    def fit(self, X, y, epoch=10, learning_rate=0.00001):
         """
         Learns the net's parameters based on provided labelled data.
         
         :param X: the train objects
         :param y: the one-hot encoded classes of given objects
-        :param epoch: the number of passes over the entire dataset during training
+        :param epoch: the number of passes over the entire dataset
         :param learning_rate: size of gradient descent step
         """
-        self.__initialize_net(X, y, learning_rate)  # randomly initialize network's weights
-        X = np.insert(X, 0, 1, axis=1)              # add constant feature
+        # randomly initialize net's weights
+        self._initialize_net(X, y, learning_rate)
+        loss = []
+
         for i in range(epoch):
-            _X, _y = shuffle(X, y)                  # shuffle data before each epoch
+            # shuffle data before each epoch
+            _X, _y = shuffle(X, y)
+            
             for obj, label in zip(_X, _y):
-                self.__update_weights(obj, label)   # update network's weights
+                # make a gradient descent step
+                diff = self._update_weights(obj, label)
+            
+            # compute categorical cross-entropy loss
+            loss.append(self._cross_entropy_loss(X, y))
+        
+        return loss
 
     def predict(self, X):
         """
@@ -40,28 +52,36 @@ class SingleLayerNetwork:
         :param X: an array of objects
         :returns: predicted classes of given objects in one-hot encoding
         """
-        scores = self.__predict(np.insert(X, 0, 1, axis=1))
+        scores = self._predict(X)
         return self.labels[np.argmax(scores, axis=1)]
-    
-    def __initialize_net(self, X, y, learning_rate):
-        self.labels = np.unique(y, axis=0)
-        self.learning_rate = learning_rate
-        self.weights = np.random.uniform(-0.01, 0.01, (len(X[0]) + 1, len(self.labels)))
-    
-    def __predict(self, X):
-        return self.__softmax(X.dot(self.weights))
 
-    def __backprop(self, X, y, scores):
+    def _initialize_net(self, X, y, learning_rate):
+        self.labels = np.unique(y, axis=0)[::-1]
+        self.learning_rate = learning_rate
+        shape = (X.shape[1], self.labels.shape[0])
+        self.bias = np.random.uniform(-0.0001, 0.0001, len(self.labels))
+        self.weights = np.random.uniform(-0.0001, 0.0001, shape)
+
+    def _predict(self, X):
+        return self._softmax(X.dot(self.weights) + self.bias)
+
+    def _backprop(self, X, y, scores):
         diff = scores - y
         self.weights -= self.learning_rate * np.outer(diff, X).T
+        self.bias -= self.learning_rate * diff
+        return diff
 
-    def __update_weights(self, X, y):
-        scores = self.__predict(X)     # forward pass
-        self.__backprop(X, y, scores)  # derivative backpropagation
-        
-    def __softmax(self, scores):
+    def _update_weights(self, X, y):
+        scores = self._predict(X)     # forward pass
+        return self._backprop(X, y, scores)  # gradient backpropagation
+
+    def _softmax(self, scores):
         e_x = np.exp(scores - np.max(scores))
         return e_x / e_x.sum(axis=0)
+    
+    def _cross_entropy_loss(self, X, y):
+        scores = self._predict(X)
+        return -np.sum(np.log(scores * y + 1e-30)) / len(y)
 
 
 # #### Loading and visualizing the MNIST dataset
@@ -69,16 +89,25 @@ class SingleLayerNetwork:
 mnist = input_data.read_data_sets("data/MNIST", one_hot=True)
 
 plt.imshow(mnist.train.images[0].reshape((28, 28)))
+plt.title("Sample image of a digit from the dataset")
 plt.colorbar()
 
 
 # #### Training the net to classify MNIST
 
+# set up and train the net
 net = SingleLayerNetwork()
-net.fit(mnist.train.images, mnist.train.labels)
+loss = net.fit(mnist.train.images[:5000], mnist.train.labels[:5000], epoch=50)
+
+# visualize loss minimization over training epochs
+plt.title("Categorical cross-entropy over training epochs")
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.plot(range(50), loss)
 
 # compute classification accuracy on test images
-predicted = net.predict(mnist.test.images)
-true_labels = mnist.test.labels
-print('accuracy:', np.sum(np.argmax(predicted, axis=1) == np.argmax(true_labels, axis=1)) / len(true_labels))
+y_pred = net.predict(mnist.test.images[:100])
+y_true = mnist.test.labels[:100]
+correct = np.sum(np.argmax(y_pred, axis=1) == np.argmax(y_true, axis=1))
+print('accuracy:', 100 * correct / len(y_true), '%')
 
